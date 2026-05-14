@@ -36,6 +36,10 @@ add column if not exists status text not null default 'pending';
 alter table public.orders
 add column if not exists completed_at timestamptz;
 
+update public.orders
+set status = 'baked'
+where status = 'completed';
+
 alter table public.settings enable row level security;
 alter table public.pizzas enable row level security;
 alter table public.orders enable row level security;

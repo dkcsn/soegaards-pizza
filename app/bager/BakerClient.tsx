@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { FakeOrder } from "@/app/lib/fake-orders";
 import {
   completeSupabaseOrder,
-  fetchSupabaseOrders,
+  fetchSupabaseBakerOrders,
 } from "@/app/lib/supabase/data";
 
 function formatPickupTime(order: FakeOrder) {
@@ -36,12 +36,13 @@ export function BakerClient() {
   const [now, setNow] = useState(() => new Date());
   const [status, setStatus] = useState("Indlæser bestillinger");
   const [finishingOrderId, setFinishingOrderId] = useState("");
+  const [confirmingOrderId, setConfirmingOrderId] = useState("");
 
   useEffect(() => {
     let cancelled = false;
 
     async function loadOrders() {
-      const loadedOrders = await fetchSupabaseOrders();
+      const loadedOrders = await fetchSupabaseBakerOrders();
 
       if (cancelled) {
         return;
@@ -92,7 +93,13 @@ export function BakerClient() {
   const laterOrders = sortedOrders.slice(1);
 
   async function finishOrder(order: FakeOrder) {
+    if (confirmingOrderId !== order.id) {
+      setConfirmingOrderId(order.id);
+      return;
+    }
+
     setFinishingOrderId(order.id);
+    setConfirmingOrderId("");
     setOrders((current) => current.filter((candidate) => candidate.id !== order.id));
 
     const completed = await completeSupabaseOrder(order.id);
@@ -182,9 +189,18 @@ export function BakerClient() {
             type="button"
             disabled={finishingOrderId === nextOrder.id}
             onClick={() => finishOrder(nextOrder)}
-            className="mt-8 w-full border border-emerald-300 bg-emerald-300 px-5 py-5 text-xl font-semibold uppercase tracking-[0.16em] text-stone-950 transition hover:bg-emerald-200 disabled:cursor-wait disabled:border-stone-700 disabled:bg-stone-800 disabled:text-stone-500"
+            className={[
+              "mt-8 w-full border px-5 py-5 text-xl font-semibold uppercase tracking-[0.16em] transition disabled:cursor-wait disabled:border-stone-700 disabled:bg-stone-800 disabled:text-stone-500",
+              confirmingOrderId === nextOrder.id
+                ? "border-amber-300 bg-amber-300 text-stone-950 hover:bg-amber-200"
+                : "border-emerald-300 bg-emerald-300 text-stone-950 hover:bg-emerald-200",
+            ].join(" ")}
           >
-            {finishingOrderId === nextOrder.id ? "Markerer færdig" : "Ordre færdig"}
+            {finishingOrderId === nextOrder.id
+              ? "Markerer færdig"
+              : confirmingOrderId === nextOrder.id
+                ? "Bekræft færdig"
+                : "Ordre færdig"}
           </button>
         </section>
       ) : (

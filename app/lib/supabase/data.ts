@@ -31,6 +31,8 @@ type OrderRow = {
   created_at: string;
 };
 
+const CAPACITY_ORDER_STATUSES = ["pending", "baked", "completed"];
+
 function rowToPizza(row: PizzaRow): Pizza {
   return {
     id: row.id,
@@ -262,6 +264,28 @@ export async function fetchSupabaseOrders() {
     .select(
       "id, slot_id, pickup_label, pickup_time, pizza_count, total, items, status, completed_at, created_at",
     )
+    .in("status", CAPACITY_ORDER_STATUSES)
+    .order("pickup_time", { ascending: true });
+
+  if (error || !data) {
+    return null;
+  }
+
+  return data.map((row) => rowToOrder(row as OrderRow));
+}
+
+export async function fetchSupabaseBakerOrders() {
+  const supabase = createSupabaseClient();
+
+  if (!supabase) {
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .from("orders")
+    .select(
+      "id, slot_id, pickup_label, pickup_time, pizza_count, total, items, status, completed_at, created_at",
+    )
     .eq("status", "pending")
     .order("pickup_time", { ascending: true });
 
@@ -282,7 +306,7 @@ export async function completeSupabaseOrder(orderId: string) {
   const { error } = await supabase
     .from("orders")
     .update({
-      status: "completed",
+      status: "baked",
       completed_at: new Date().toISOString(),
     })
     .eq("id", orderId);
