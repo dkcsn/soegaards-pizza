@@ -4,6 +4,8 @@ export const LAST_PICKUP_TIME = "20:20";
 export const SLOT_INTERVAL_MINUTES = 10;
 export const PIZZA_CAPACITY_MINUTES = 2.5;
 export const SLOT_CAPACITY_MINUTES = 10;
+export const DYNAMIC_SLOT_MINUTES = 5;
+export const DEFAULT_MAX_ORDER_PIZZAS = 8;
 export const MAX_PIZZAS_PER_SLOT = 4;
 export const RELEASE_CONTROL_ENABLED = true;
 export const LATE_START_TIME = "20:00";
@@ -92,7 +94,12 @@ function getSlotId(slotTime: Date) {
   )}-${hours}${minutes}`;
 }
 
-function createSlot(slotTime: Date, now: Date, capacityMinutes: number, isDynamic: boolean) {
+function createSlot(
+  slotTime: Date,
+  now: Date,
+  capacityMinutes: number,
+  isDynamic: boolean,
+) {
   const hours = pad(slotTime.getHours());
   const minutes = pad(slotTime.getMinutes());
   const dayLabel = getDayLabel(slotTime, now);
@@ -137,6 +144,12 @@ function getOverlapMinutes(
   endB: number,
 ) {
   return Math.max(0, Math.min(endA, endB) - Math.max(startA, startB)) / 60000;
+}
+
+function ceilToFiveMinuteBoundary(time: number) {
+  const fiveMinutes = DYNAMIC_SLOT_MINUTES * 60 * 1000;
+
+  return Math.ceil(time / fiveMinutes) * fiveMinutes;
 }
 
 function getOrderIntervals(slots: PickupSlot[], orders: CapacityOrder[]) {
@@ -199,37 +212,54 @@ export function generatePickupSlotsWithDynamicCapacity(
   const dynamicSlots = standardSlots.flatMap((slot) => {
     const bucketStart = new Date(slot.time).getTime();
     const bucketEnd = bucketStart + SLOT_CAPACITY_MINUTES * 60 * 1000;
-    const usedMinutes = intervals.reduce(
-      (sum, interval) =>
-        sum +
-        getOverlapMinutes(
-          interval.startTime,
-          interval.endTime,
-          bucketStart,
-          bucketEnd,
-        ),
-      0,
-    );
-    const remainingMinutes = SLOT_CAPACITY_MINUTES - usedMinutes;
-    const dynamicStartTime = bucketStart + usedMinutes * 60 * 1000;
+    const usedIntervals = intervals
+      .map((interval) => ({
+        startTime: Math.max(interval.startTime, bucketStart),
+        endTime: Math.min(interval.endTime, bucketEnd),
+      }))
+      .filter((interval) => interval.startTime < interval.endTime)
+      .sort((a, b) => a.startTime - b.startTime);
 
-    if (
-      usedMinutes === 0 ||
-      usedMinutes % 5 !== 0 ||
-      remainingMinutes < PIZZA_CAPACITY_MINUTES ||
-      dynamicStartTime <= now.getTime()
-    ) {
+    if (usedIntervals.length === 0) {
       return [];
     }
 
-    return [
-      createSlot(
-        new Date(dynamicStartTime),
-        now,
-        remainingMinutes,
-        true,
-      ),
-    ];
+    const freeIntervals: Array<{ startTime: number; endTime: number }> = [];
+    let cursor = bucketStart;
+
+    for (const interval of usedIntervals) {
+      if (interval.startTime > cursor) {
+        freeIntervals.push({ startTime: cursor, endTime: interval.startTime });
+      }
+
+      cursor = Math.max(cursor, interval.endTime);
+    }
+
+    if (cursor < bucketEnd) {
+      freeIntervals.push({ startTime: cursor, endTime: bucketEnd });
+    }
+
+    return freeIntervals.flatMap((interval) => {
+      const dynamicStartTime = ceilToFiveMinuteBoundary(interval.startTime);
+      const freeMinutes = (interval.endTime - dynamicStartTime) / 60000;
+
+      if (
+        dynamicStartTime === bucketStart ||
+        freeMinutes < DYNAMIC_SLOT_MINUTES ||
+        dynamicStartTime <= now.getTime()
+      ) {
+        return [];
+      }
+
+      return [
+        createSlot(
+          new Date(dynamicStartTime),
+          now,
+          DYNAMIC_SLOT_MINUTES,
+          true,
+        ),
+      ];
+    });
   });
 
   return [...standardSlots, ...dynamicSlots].sort(
@@ -285,7 +315,7 @@ export function canReservePickupSlot(
 
   const requestedMinutes = getCapacityMinutes(pizzaCount);
 
-  if (requestedMinutes > slot.capacityMinutes) {
+  if (slot.isDynamic && requestedMinutes > slot.capacityMinutes) {
     return false;
   }
 
@@ -302,6 +332,15 @@ export function canReservePickupSlot(
   }
 
   const intervals = getOrderIntervals(standardSlots, orders);
+
+  if (
+    intervals.some(
+      (interval) =>
+        getOverlapMinutes(startTime, endTime, interval.startTime, interval.endTime) > 0,
+    )
+  ) {
+    return false;
+  }
 
   return standardSlots.every((bucket) => {
     const bucketStart = new Date(bucket.time).getTime();

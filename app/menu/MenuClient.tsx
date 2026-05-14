@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import {
   DAILY_PIZZA_CAPACITY,
+  DEFAULT_MAX_ORDER_PIZZAS,
   PIZZA_CAPACITY_MINUTES,
   areLateSlotsReleasedForCapacity,
   canReservePickupSlot,
@@ -23,6 +24,7 @@ import {
 import { formatPrice, type Pizza } from "@/app/lib/menu";
 import {
   fetchSupabaseDailyCapacity,
+  fetchSupabaseMaxOrderPizzas,
   fetchSupabasePizzas,
 } from "@/app/lib/supabase/data";
 
@@ -54,6 +56,9 @@ export function MenuClient({ pizzas, nowIso }: MenuClientProps) {
   const [dailyPizzaCapacity, setDailyPizzaCapacity] = useState(
     DAILY_PIZZA_CAPACITY,
   );
+  const [maxOrderPizzas, setMaxOrderPizzas] = useState(
+    DEFAULT_MAX_ORDER_PIZZAS,
+  );
   const orders = useSyncExternalStore(
     subscribeToFakeOrders,
     getFakeOrdersSnapshot,
@@ -65,10 +70,12 @@ export function MenuClient({ pizzas, nowIso }: MenuClientProps) {
     let cancelled = false;
 
     async function loadSupabaseData() {
-      const [remoteCapacity, remotePizzas] = await Promise.all([
-        fetchSupabaseDailyCapacity(),
-        fetchSupabasePizzas(),
-      ]);
+      const [remoteCapacity, remoteMaxOrderPizzas, remotePizzas] =
+        await Promise.all([
+          fetchSupabaseDailyCapacity(),
+          fetchSupabaseMaxOrderPizzas(),
+          fetchSupabasePizzas(),
+        ]);
 
       if (cancelled) {
         return;
@@ -76,6 +83,10 @@ export function MenuClient({ pizzas, nowIso }: MenuClientProps) {
 
       if (typeof remoteCapacity === "number") {
         setDailyPizzaCapacity(remoteCapacity);
+      }
+
+      if (typeof remoteMaxOrderPizzas === "number") {
+        setMaxOrderPizzas(remoteMaxOrderPizzas);
       }
 
       if (remotePizzas && remotePizzas.length > 0) {
@@ -140,10 +151,12 @@ export function MenuClient({ pizzas, nowIso }: MenuClientProps) {
       : visibleSlots.find(isSlotAvailable)?.id ?? firstAvailableSlot?.id ?? "";
   const selectedSlot = pickupSlots.find((slot) => slot.id === effectiveSlotId);
   const capacityProblem = itemCount > remainingPizzaCount;
+  const orderLimitProblem = itemCount > maxOrderPizzas;
   const canPay =
     itemCount > 0 &&
     selectedSlot !== undefined &&
     !capacityProblem &&
+    !orderLimitProblem &&
     canReservePickupSlot(
       standardSlots,
       orders,
@@ -155,20 +168,30 @@ export function MenuClient({ pizzas, nowIso }: MenuClientProps) {
 
   function setQuantity(pizza: Pizza, quantity: number) {
     setCart((current) => {
-      const nextQuantity = Math.max(0, Math.min(quantity, 8));
+      const nextQuantity = Math.max(0, Math.min(quantity, maxOrderPizzas));
+      const otherPizzaCount = current.reduce(
+        (sum, item) => sum + (item.pizza.id === pizza.id ? 0 : item.quantity),
+        0,
+      );
+      const allowedQuantity = Math.min(
+        nextQuantity,
+        Math.max(maxOrderPizzas - otherPizzaCount, 0),
+      );
       const existing = current.find((item) => item.pizza.id === pizza.id);
 
-      if (nextQuantity === 0) {
+      if (allowedQuantity === 0) {
         return current.filter((item) => item.pizza.id !== pizza.id);
       }
 
       if (existing) {
         return current.map((item) =>
-          item.pizza.id === pizza.id ? { ...item, quantity: nextQuantity } : item,
+          item.pizza.id === pizza.id
+            ? { ...item, quantity: allowedQuantity }
+            : item,
         );
       }
 
-      return [...current, { pizza, quantity: nextQuantity }];
+      return [...current, { pizza, quantity: allowedQuantity }];
     });
   }
 
@@ -212,6 +235,7 @@ export function MenuClient({ pizzas, nowIso }: MenuClientProps) {
       <section className="grid gap-5">
         {activePizzas.map((pizza) => {
           const quantity = getQuantity(pizza.id);
+          const canAddPizza = itemCount < maxOrderPizzas;
 
           return (
             <article
@@ -258,8 +282,9 @@ export function MenuClient({ pizzas, nowIso }: MenuClientProps) {
                   </span>
                   <button
                     type="button"
+                    disabled={!canAddPizza}
                     onClick={() => setQuantity(pizza, quantity + 1)}
-                    className="border-l border-stone-800 text-xl text-stone-300 transition hover:bg-stone-900 hover:text-stone-50"
+                    className="border-l border-stone-800 text-xl text-stone-300 transition hover:bg-stone-900 hover:text-stone-50 disabled:cursor-not-allowed disabled:text-stone-700"
                     aria-label={`Add one ${pizza.name}`}
                   >
                     +
@@ -417,6 +442,11 @@ export function MenuClient({ pizzas, nowIso }: MenuClientProps) {
             {capacityProblem ? (
               <p className="mt-4 text-sm leading-6 text-stone-400">
                 Der er kun {remainingPizzaCount} pizzaer tilbage i aften.
+              </p>
+            ) : null}
+            {orderLimitProblem ? (
+              <p className="mt-4 text-sm leading-6 text-stone-400">
+                En bestilling kan højst have {maxOrderPizzas} pizzaer.
               </p>
             ) : null}
 

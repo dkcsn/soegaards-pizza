@@ -1,4 +1,7 @@
-import { DAILY_PIZZA_CAPACITY } from "@/app/lib/booking";
+import {
+  DAILY_PIZZA_CAPACITY,
+  DEFAULT_MAX_ORDER_PIZZAS,
+} from "@/app/lib/booking";
 import type { Pizza } from "@/app/lib/menu";
 import { createSupabaseClient } from "@/app/lib/supabase/client";
 
@@ -86,7 +89,7 @@ export async function deleteSupabasePizza(pizzaId: string) {
   return !error;
 }
 
-export async function fetchSupabaseDailyCapacity() {
+async function fetchNumberSetting(key: string, fallback: number) {
   const supabase = createSupabaseClient();
 
   if (!supabase) {
@@ -96,7 +99,7 @@ export async function fetchSupabaseDailyCapacity() {
   const { data, error } = await supabase
     .from("settings")
     .select("value")
-    .eq("key", "daily_pizza_capacity")
+    .eq("key", key)
     .single();
 
   if (error || !data) {
@@ -105,10 +108,10 @@ export async function fetchSupabaseDailyCapacity() {
 
   const value = data.value as { value?: unknown };
 
-  return typeof value.value === "number" ? value.value : DAILY_PIZZA_CAPACITY;
+  return typeof value.value === "number" ? value.value : fallback;
 }
 
-export async function updateSupabaseDailyCapacity(value: number) {
+async function updateNumberSetting(key: string, value: number) {
   const supabase = createSupabaseClient();
 
   if (!supabase) {
@@ -117,7 +120,7 @@ export async function updateSupabaseDailyCapacity(value: number) {
 
   const { error } = await supabase.from("settings").upsert(
     {
-      key: "daily_pizza_capacity",
+      key,
       value: { value },
       updated_at: new Date().toISOString(),
     },
@@ -125,4 +128,20 @@ export async function updateSupabaseDailyCapacity(value: number) {
   );
 
   return !error;
+}
+
+export async function fetchSupabaseDailyCapacity() {
+  return fetchNumberSetting("daily_pizza_capacity", DAILY_PIZZA_CAPACITY);
+}
+
+export async function updateSupabaseDailyCapacity(value: number) {
+  return updateNumberSetting("daily_pizza_capacity", value);
+}
+
+export async function fetchSupabaseMaxOrderPizzas() {
+  return fetchNumberSetting("max_order_pizzas", DEFAULT_MAX_ORDER_PIZZAS);
+}
+
+export async function updateSupabaseMaxOrderPizzas(value: number) {
+  return updateNumberSetting("max_order_pizzas", value);
 }

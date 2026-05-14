@@ -2,9 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { formatPrice, type Pizza } from "@/app/lib/menu";
-import {
-  DEFAULT_ADMIN_SETTINGS,
-} from "@/app/lib/admin-settings";
+import { DEFAULT_ADMIN_SETTINGS } from "@/app/lib/admin-settings";
 import {
   inputToList,
   listToInput,
@@ -13,8 +11,10 @@ import {
 import {
   deleteSupabasePizza,
   fetchSupabaseDailyCapacity,
+  fetchSupabaseMaxOrderPizzas,
   fetchSupabasePizzas,
   updateSupabaseDailyCapacity,
+  updateSupabaseMaxOrderPizzas,
   upsertSupabasePizza,
 } from "@/app/lib/supabase/data";
 
@@ -25,6 +25,9 @@ type AdminClientProps = {
 export function AdminClient({ pizzas }: AdminClientProps) {
   const [dailyCapacity, setDailyCapacity] = useState(
     DEFAULT_ADMIN_SETTINGS.dailyPizzaCapacity,
+  );
+  const [maxOrderPizzas, setMaxOrderPizzas] = useState(
+    DEFAULT_ADMIN_SETTINGS.maxOrderPizzas,
   );
   const [editablePizzas, setEditablePizzas] = useState(pizzas);
   const [status, setStatus] = useState("Config fallback");
@@ -41,10 +44,12 @@ export function AdminClient({ pizzas }: AdminClientProps) {
     let cancelled = false;
 
     async function loadSupabaseData() {
-      const [remoteCapacity, remotePizzas] = await Promise.all([
-        fetchSupabaseDailyCapacity(),
-        fetchSupabasePizzas(),
-      ]);
+      const [remoteCapacity, remoteMaxOrderPizzas, remotePizzas] =
+        await Promise.all([
+          fetchSupabaseDailyCapacity(),
+          fetchSupabaseMaxOrderPizzas(),
+          fetchSupabasePizzas(),
+        ]);
 
       if (cancelled) {
         return;
@@ -52,6 +57,10 @@ export function AdminClient({ pizzas }: AdminClientProps) {
 
       if (typeof remoteCapacity === "number") {
         setDailyCapacity(remoteCapacity);
+      }
+
+      if (typeof remoteMaxOrderPizzas === "number") {
+        setMaxOrderPizzas(remoteMaxOrderPizzas);
       }
 
       if (remotePizzas && remotePizzas.length > 0) {
@@ -111,9 +120,15 @@ export function AdminClient({ pizzas }: AdminClientProps) {
     void updateSupabaseDailyCapacity(nextValue);
   }
 
+  function updateMaxOrder(value: number) {
+    const nextValue = Math.max(1, Math.min(Math.round(value || 1), 30));
+    setMaxOrderPizzas(nextValue);
+    void updateSupabaseMaxOrderPizzas(nextValue);
+  }
+
   return (
     <div className="grid gap-8">
-      <section className="grid gap-4 md:grid-cols-3">
+      <section className="grid gap-4 md:grid-cols-4">
         <div className="border border-stone-800 p-5">
           <p className="text-xs uppercase tracking-[0.22em] text-stone-600">
             Dagens kapacitet
@@ -140,6 +155,22 @@ export function AdminClient({ pizzas }: AdminClientProps) {
           <p className="mt-2 text-sm text-stone-500">
             {editablePizzas.length - activePizzaCount} skjult
           </p>
+        </div>
+
+        <div className="border border-stone-800 p-5">
+          <p className="text-xs uppercase tracking-[0.22em] text-stone-600">
+            Max pr. ordre
+          </p>
+          <label className="mt-4 block">
+            <input
+              type="text"
+              inputMode="numeric"
+              value={maxOrderPizzas}
+              onChange={(event) => updateMaxOrder(Number(event.target.value))}
+              className="w-full border border-stone-800 bg-stone-950 px-3 py-3 font-mono text-4xl text-stone-50 outline-none focus:border-stone-500"
+            />
+          </label>
+          <p className="mt-2 text-sm text-stone-500">pizzaer pr. bestilling</p>
         </div>
 
         <div className="border border-stone-800 p-5">

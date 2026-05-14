@@ -1,9 +1,13 @@
 "use client";
 
-import { DAILY_PIZZA_CAPACITY } from "@/app/lib/booking";
+import {
+  DAILY_PIZZA_CAPACITY,
+  DEFAULT_MAX_ORDER_PIZZAS,
+} from "@/app/lib/booking";
 
 export type AdminSettings = {
   dailyPizzaCapacity: number;
+  maxOrderPizzas: number;
 };
 
 const STORAGE_KEY = "soegaards-pizza.admin-settings.v1";
@@ -11,6 +15,7 @@ const STORAGE_EVENT = "soegaards-pizza.admin-settings.updated";
 
 export const DEFAULT_ADMIN_SETTINGS: AdminSettings = {
   dailyPizzaCapacity: DAILY_PIZZA_CAPACITY,
+  maxOrderPizzas: DEFAULT_MAX_ORDER_PIZZAS,
 };
 
 let cachedStoredValue: string | null = null;
@@ -28,6 +33,14 @@ function normalizeCapacity(value: unknown) {
   return Math.max(1, Math.min(Math.round(value), 120));
 }
 
+function normalizeMaxOrderPizzas(value: unknown) {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return DEFAULT_MAX_ORDER_PIZZAS;
+  }
+
+  return Math.max(1, Math.min(Math.round(value), 30));
+}
+
 function parseSettings(value: string | null) {
   try {
     if (!value) {
@@ -38,6 +51,7 @@ function parseSettings(value: string | null) {
 
     return {
       dailyPizzaCapacity: normalizeCapacity(parsed?.dailyPizzaCapacity),
+      maxOrderPizzas: normalizeMaxOrderPizzas(parsed?.maxOrderPizzas),
     };
   } catch {
     return DEFAULT_ADMIN_SETTINGS;
@@ -92,6 +106,7 @@ export function writeAdminSettings(settings: AdminSettings) {
 
   const normalizedSettings = {
     dailyPizzaCapacity: normalizeCapacity(settings.dailyPizzaCapacity),
+    maxOrderPizzas: normalizeMaxOrderPizzas(settings.maxOrderPizzas),
   };
   const nextValue = JSON.stringify(normalizedSettings);
   cachedStoredValue = nextValue;
@@ -104,5 +119,12 @@ export function updateDailyPizzaCapacity(dailyPizzaCapacity: number) {
   writeAdminSettings({
     ...getAdminSettingsSnapshot(),
     dailyPizzaCapacity,
+  });
+}
+
+export function updateMaxOrderPizzas(maxOrderPizzas: number) {
+  writeAdminSettings({
+    ...getAdminSettingsSnapshot(),
+    maxOrderPizzas,
   });
 }

@@ -55,6 +55,10 @@ insert into public.settings (key, value)
 values ('daily_pizza_capacity', '{"value": 30}'::jsonb)
 on conflict (key) do nothing;
 
+insert into public.settings (key, value)
+values ('max_order_pizzas', '{"value": 8}'::jsonb)
+on conflict (key) do nothing;
+
 insert into public.pizzas
   (id, name, price, description, ingredients, active, image_url, sort_order)
 values
