@@ -21,8 +21,10 @@ import {
 } from "@/app/lib/fake-orders";
 import { formatPrice, type Pizza } from "@/app/lib/menu";
 import {
+  addSupabaseOrder,
   fetchSupabaseDailyCapacity,
   fetchSupabaseMaxOrderPizzas,
+  fetchSupabaseOrders,
   fetchSupabasePizzas,
 } from "@/app/lib/supabase/data";
 
@@ -57,6 +59,7 @@ export function MenuClient({ pizzas, nowIso }: MenuClientProps) {
   const [maxOrderPizzas, setMaxOrderPizzas] = useState(
     DEFAULT_MAX_ORDER_PIZZAS,
   );
+  const [remoteOrders, setRemoteOrders] = useState<FakeOrder[] | null>(null);
   const orders = useSyncExternalStore(
     subscribeToFakeOrders,
     getFakeOrdersSnapshot,
@@ -68,11 +71,17 @@ export function MenuClient({ pizzas, nowIso }: MenuClientProps) {
     let cancelled = false;
 
     async function loadSupabaseData() {
-      const [remoteCapacity, remoteMaxOrderPizzas, remotePizzas] =
+      const [
+        remoteCapacity,
+        remoteMaxOrderPizzas,
+        remotePizzas,
+        loadedOrders,
+      ] =
         await Promise.all([
           fetchSupabaseDailyCapacity(),
           fetchSupabaseMaxOrderPizzas(),
           fetchSupabasePizzas(),
+          fetchSupabaseOrders(),
         ]);
 
       if (cancelled) {
@@ -90,6 +99,10 @@ export function MenuClient({ pizzas, nowIso }: MenuClientProps) {
       if (remotePizzas && remotePizzas.length > 0) {
         setEditablePizzas(remotePizzas);
       }
+
+      if (loadedOrders) {
+        setRemoteOrders(loadedOrders);
+      }
     }
 
     void loadSupabaseData();
@@ -100,6 +113,7 @@ export function MenuClient({ pizzas, nowIso }: MenuClientProps) {
   }, []);
 
   const activePizzas = editablePizzas.filter((pizza) => pizza.active);
+  const capacityOrders = remoteOrders ?? orders;
 
   const itemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
   const total = cart.reduce(
@@ -111,14 +125,15 @@ export function MenuClient({ pizzas, nowIso }: MenuClientProps) {
     [now],
   );
   const pickupSlots = useMemo(
-    () => generatePickupSlotsWithDynamicCapacity(standardSlots, orders, now),
-    [now, orders, standardSlots],
+    () =>
+      generatePickupSlotsWithDynamicCapacity(standardSlots, capacityOrders, now),
+    [capacityOrders, now, standardSlots],
   );
   const lateSlotsAreReleased = areLateSlotsReleasedForCapacity(
-    orders,
+    capacityOrders,
     dailyPizzaCapacity,
   );
-  const reservedPizzaCount = getReservedPizzaCount(orders);
+  const reservedPizzaCount = getReservedPizzaCount(capacityOrders);
   const remainingPizzaCount = Math.max(
     dailyPizzaCapacity - reservedPizzaCount,
     0,
@@ -127,7 +142,7 @@ export function MenuClient({ pizzas, nowIso }: MenuClientProps) {
   const isSlotAvailable = (slot: PickupSlot) =>
     canReservePickupSlot(
       standardSlots,
-      orders,
+      capacityOrders,
       slot,
       requestedPizzaCount,
       dailyPizzaCapacity,
@@ -157,7 +172,7 @@ export function MenuClient({ pizzas, nowIso }: MenuClientProps) {
     !orderLimitProblem &&
     canReservePickupSlot(
       standardSlots,
-      orders,
+      capacityOrders,
       selectedSlot,
       itemCount,
       dailyPizzaCapacity,
@@ -209,12 +224,20 @@ export function MenuClient({ pizzas, nowIso }: MenuClientProps) {
       id: orderId,
       slotId: selectedSlot.id,
       pickupLabel: selectedSlot.label,
+      pickupTime: selectedSlot.time,
       pizzaCount: itemCount,
       total,
+      items: cart.map((item) => ({
+        pizzaId: item.pizza.id,
+        name: item.pizza.name,
+        quantity: item.quantity,
+        ingredients: item.pizza.ingredients,
+      })),
       createdAt: new Date().toISOString(),
     };
 
     addFakeOrder(order);
+    void addSupabaseOrder(order);
 
     const params = new URLSearchParams({
       order: order.id,

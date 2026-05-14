@@ -2,6 +2,7 @@ import {
   DAILY_PIZZA_CAPACITY,
   DEFAULT_MAX_ORDER_PIZZAS,
 } from "@/app/lib/booking";
+import type { FakeOrder, OrderItem } from "@/app/lib/fake-orders";
 import type { Pizza } from "@/app/lib/menu";
 import { createSupabaseClient } from "@/app/lib/supabase/client";
 
@@ -14,6 +15,17 @@ type PizzaRow = {
   active: boolean;
   image_url: string | null;
   sort_order: number;
+};
+
+type OrderRow = {
+  id: string;
+  slot_id: string;
+  pickup_label: string;
+  pickup_time: string;
+  pizza_count: number;
+  total: number;
+  items: OrderItem[];
+  created_at: string;
 };
 
 function rowToPizza(row: PizzaRow): Pizza {
@@ -39,6 +51,32 @@ function pizzaToRow(pizza: Pizza, sortOrder: number) {
     image_url: pizza.imageUrl || null,
     sort_order: sortOrder,
     updated_at: new Date().toISOString(),
+  };
+}
+
+function rowToOrder(row: OrderRow): FakeOrder {
+  return {
+    id: row.id,
+    slotId: row.slot_id,
+    pickupLabel: row.pickup_label,
+    pickupTime: row.pickup_time,
+    pizzaCount: row.pizza_count,
+    total: row.total,
+    items: row.items,
+    createdAt: row.created_at,
+  };
+}
+
+function orderToRow(order: FakeOrder) {
+  return {
+    id: order.id,
+    slot_id: order.slotId,
+    pickup_label: order.pickupLabel,
+    pickup_time: order.pickupTime ?? new Date().toISOString(),
+    pizza_count: order.pizzaCount,
+    total: order.total,
+    items: order.items ?? [],
+    created_at: order.createdAt,
   };
 }
 
@@ -144,4 +182,54 @@ export async function fetchSupabaseMaxOrderPizzas() {
 
 export async function updateSupabaseMaxOrderPizzas(value: number) {
   return updateNumberSetting("max_order_pizzas", value);
+}
+
+export async function addSupabaseOrder(order: FakeOrder) {
+  const supabase = createSupabaseClient();
+
+  if (!supabase) {
+    return false;
+  }
+
+  const { error } = await supabase
+    .from("orders")
+    .insert(orderToRow(order));
+
+  return !error;
+}
+
+export async function fetchSupabaseOrders() {
+  const supabase = createSupabaseClient();
+
+  if (!supabase) {
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .from("orders")
+    .select(
+      "id, slot_id, pickup_label, pickup_time, pizza_count, total, items, created_at",
+    )
+    .order("pickup_time", { ascending: true });
+
+  if (error || !data) {
+    return null;
+  }
+
+  return data.map((row) => rowToOrder(row as OrderRow));
+}
+
+export async function clearSupabaseOrders() {
+  const supabase = createSupabaseClient();
+
+  if (!supabase) {
+    return false;
+  }
+
+  const { error } = await supabase
+    .from("orders")
+    .delete()
+    .neq("id", "");
+
+  return !error;
 }

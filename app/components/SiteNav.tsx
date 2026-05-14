@@ -14,6 +14,9 @@ export function SiteNav() {
           <Link href="/menu" className="transition hover:text-stone-50">
             Menu
           </Link>
+          <Link href="/bager" className="transition hover:text-stone-50">
+            Bager
+          </Link>
           <Link href="/admin" className="transition hover:text-stone-50">
             Admin
           </Link>

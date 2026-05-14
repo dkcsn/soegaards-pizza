@@ -1,9 +1,18 @@
+export type OrderItem = {
+  pizzaId: string;
+  name: string;
+  quantity: number;
+  ingredients: string[];
+};
+
 export type FakeOrder = {
   id: string;
   slotId: string;
   pickupLabel: string;
+  pickupTime?: string;
   pizzaCount: number;
   total: number;
+  items?: OrderItem[];
   createdAt: string;
 };
 
@@ -36,6 +45,8 @@ function parseOrders(value: string | null): FakeOrder[] {
         typeof order.pickupLabel === "string" &&
         typeof order.pizzaCount === "number" &&
         typeof order.total === "number" &&
+        (order.pickupTime === undefined || typeof order.pickupTime === "string") &&
+        (order.items === undefined || Array.isArray(order.items)) &&
         typeof order.createdAt === "string"
       );
     });

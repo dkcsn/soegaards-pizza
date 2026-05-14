@@ -17,13 +17,27 @@ create table if not exists public.pizzas (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.orders (
+  id text primary key,
+  slot_id text not null,
+  pickup_label text not null,
+  pickup_time timestamptz not null,
+  pizza_count integer not null,
+  total integer not null,
+  items jsonb not null default '[]',
+  created_at timestamptz not null default now()
+);
+
 alter table public.settings enable row level security;
 alter table public.pizzas enable row level security;
+alter table public.orders enable row level security;
 
 drop policy if exists "public read settings" on public.settings;
 drop policy if exists "public write settings" on public.settings;
 drop policy if exists "public read pizzas" on public.pizzas;
 drop policy if exists "public write pizzas" on public.pizzas;
+drop policy if exists "public read orders" on public.orders;
+drop policy if exists "public write orders" on public.orders;
 
 create policy "public read settings"
 on public.settings
@@ -46,6 +60,19 @@ using (true);
 
 create policy "public write pizzas"
 on public.pizzas
+for all
+to anon
+using (true)
+with check (true);
+
+create policy "public read orders"
+on public.orders
+for select
+to anon
+using (true);
+
+create policy "public write orders"
+on public.orders
 for all
 to anon
 using (true)

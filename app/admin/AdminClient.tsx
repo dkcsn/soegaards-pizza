@@ -6,6 +6,7 @@ import {
   getFakeOrdersServerSnapshot,
   getFakeOrdersSnapshot,
   subscribeToFakeOrders,
+  type FakeOrder,
 } from "@/app/lib/fake-orders";
 import { formatPrice, type Pizza } from "@/app/lib/menu";
 import { DEFAULT_ADMIN_SETTINGS } from "@/app/lib/admin-settings";
@@ -15,9 +16,11 @@ import {
   type PizzaOverride,
 } from "@/app/lib/menu-overrides";
 import {
+  clearSupabaseOrders,
   deleteSupabasePizza,
   fetchSupabaseDailyCapacity,
   fetchSupabaseMaxOrderPizzas,
+  fetchSupabaseOrders,
   fetchSupabasePizzas,
   updateSupabaseDailyCapacity,
   updateSupabaseMaxOrderPizzas,
@@ -38,13 +41,15 @@ export function AdminClient({ pizzas }: AdminClientProps) {
   const [editablePizzas, setEditablePizzas] = useState(pizzas);
   const [status, setStatus] = useState("Config fallback");
   const [isConfirmingClearOrders, setIsConfirmingClearOrders] = useState(false);
+  const [remoteOrders, setRemoteOrders] = useState<FakeOrder[] | null>(null);
   const orders = useSyncExternalStore(
     subscribeToFakeOrders,
     getFakeOrdersSnapshot,
     getFakeOrdersServerSnapshot,
   );
   const activePizzaCount = editablePizzas.filter((pizza) => pizza.active).length;
-  const orderedPizzaCount = orders.reduce(
+  const visibleOrders = remoteOrders ?? orders;
+  const orderedPizzaCount = visibleOrders.reduce(
     (sum, order) => sum + order.pizzaCount,
     0,
   );
@@ -60,11 +65,17 @@ export function AdminClient({ pizzas }: AdminClientProps) {
     let cancelled = false;
 
     async function loadSupabaseData() {
-      const [remoteCapacity, remoteMaxOrderPizzas, remotePizzas] =
+      const [
+        remoteCapacity,
+        remoteMaxOrderPizzas,
+        remotePizzas,
+        loadedOrders,
+      ] =
         await Promise.all([
           fetchSupabaseDailyCapacity(),
           fetchSupabaseMaxOrderPizzas(),
           fetchSupabasePizzas(),
+          fetchSupabaseOrders(),
         ]);
 
       if (cancelled) {
@@ -84,6 +95,10 @@ export function AdminClient({ pizzas }: AdminClientProps) {
         setStatus("Supabase connected");
       } else {
         setStatus("Run Supabase schema");
+      }
+
+      if (loadedOrders) {
+        setRemoteOrders(loadedOrders);
       }
     }
 
@@ -144,6 +159,8 @@ export function AdminClient({ pizzas }: AdminClientProps) {
 
   function clearTestOrders() {
     clearFakeOrders();
+    setRemoteOrders([]);
+    void clearSupabaseOrders();
     setIsConfirmingClearOrders(false);
   }
 
@@ -228,7 +245,7 @@ export function AdminClient({ pizzas }: AdminClientProps) {
           {!isConfirmingClearOrders ? (
             <button
               type="button"
-              disabled={orders.length === 0}
+              disabled={visibleOrders.length === 0}
               onClick={() => setIsConfirmingClearOrders(true)}
               className="border border-stone-700 px-4 py-3 text-sm font-semibold uppercase tracking-[0.16em] text-stone-300 transition hover:border-stone-400 hover:text-stone-50 disabled:cursor-not-allowed disabled:text-stone-700"
             >
