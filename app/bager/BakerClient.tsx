@@ -2,7 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { FakeOrder } from "@/app/lib/fake-orders";
-import { fetchSupabaseOrders } from "@/app/lib/supabase/data";
+import {
+  completeSupabaseOrder,
+  fetchSupabaseOrders,
+} from "@/app/lib/supabase/data";
 
 function formatPickupTime(order: FakeOrder) {
   if (!order.pickupTime) {
@@ -21,9 +24,18 @@ function getOrderTime(order: FakeOrder) {
     : new Date(order.createdAt).getTime();
 }
 
+function formatClock(date: Date) {
+  return new Intl.DateTimeFormat("da-DK", {
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
 export function BakerClient() {
   const [orders, setOrders] = useState<FakeOrder[]>([]);
+  const [now, setNow] = useState(() => new Date());
   const [status, setStatus] = useState("Indlæser bestillinger");
+  const [finishingOrderId, setFinishingOrderId] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -52,6 +64,26 @@ export function BakerClient() {
     };
   }, []);
 
+  useEffect(() => {
+    let timeoutId = 0;
+
+    function tickOnNextMinute() {
+      setNow(new Date());
+      const nextMinute = new Date();
+      nextMinute.setSeconds(60, 0);
+      timeoutId = window.setTimeout(
+        tickOnNextMinute,
+        nextMinute.getTime() - Date.now(),
+      );
+    }
+
+    tickOnNextMinute();
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, []);
+
   const sortedOrders = useMemo(
     () => [...orders].sort((a, b) => getOrderTime(a) - getOrderTime(b)),
     [orders],
@@ -59,8 +91,33 @@ export function BakerClient() {
   const nextOrder = sortedOrders[0];
   const laterOrders = sortedOrders.slice(1);
 
+  async function finishOrder(order: FakeOrder) {
+    setFinishingOrderId(order.id);
+    setOrders((current) => current.filter((candidate) => candidate.id !== order.id));
+
+    const completed = await completeSupabaseOrder(order.id);
+
+    if (!completed) {
+      setStatus("Kunne ikke markere færdig");
+      setOrders((current) => [...current, order]);
+    } else {
+      setStatus("Ordre markeret færdig");
+    }
+
+    setFinishingOrderId("");
+  }
+
   return (
     <div className="mx-auto grid min-h-[calc(100vh-7rem)] max-w-3xl gap-5">
+      <section className="border border-stone-800 bg-stone-950 p-6">
+        <p className="text-xs uppercase tracking-[0.22em] text-stone-500">
+          Nu
+        </p>
+        <p className="mt-3 font-mono text-7xl text-stone-50">
+          {formatClock(now)}
+        </p>
+      </section>
+
       <header className="flex items-end justify-between gap-4 border-b border-stone-800 pb-5">
         <div>
           <p className="text-xs uppercase tracking-[0.24em] text-stone-500">
@@ -77,7 +134,7 @@ export function BakerClient() {
 
       {nextOrder ? (
         <section className="border border-stone-700 bg-stone-900 p-6">
-          <div className="flex items-start justify-between gap-6">
+          <div className="grid gap-6 sm:grid-cols-[minmax(0,1fr)_220px]">
             <div>
               <p className="text-xs uppercase tracking-[0.22em] text-stone-500">
                 Færdig kl.
@@ -86,11 +143,11 @@ export function BakerClient() {
                 {formatPickupTime(nextOrder)}
               </p>
             </div>
-            <div className="text-right">
-              <p className="font-mono text-xl text-stone-300">
+            <div className="sm:text-right">
+              <p className="font-mono text-lg text-stone-400">
                 {nextOrder.id}
               </p>
-              <p className="mt-2 text-sm text-stone-500">
+              <p className="mt-4 text-5xl font-semibold text-stone-50">
                 {nextOrder.pizzaCount} pizzaer
               </p>
             </div>
@@ -120,6 +177,15 @@ export function BakerClient() {
               </article>
             ))}
           </div>
+
+          <button
+            type="button"
+            disabled={finishingOrderId === nextOrder.id}
+            onClick={() => finishOrder(nextOrder)}
+            className="mt-8 w-full border border-emerald-300 bg-emerald-300 px-5 py-5 text-xl font-semibold uppercase tracking-[0.16em] text-stone-950 transition hover:bg-emerald-200 disabled:cursor-wait disabled:border-stone-700 disabled:bg-stone-800 disabled:text-stone-500"
+          >
+            {finishingOrderId === nextOrder.id ? "Markerer færdig" : "Ordre færdig"}
+          </button>
         </section>
       ) : (
         <section className="grid place-items-center border border-stone-800 p-10 text-center">

@@ -25,8 +25,16 @@ create table if not exists public.orders (
   pizza_count integer not null,
   total integer not null,
   items jsonb not null default '[]',
+  status text not null default 'pending',
+  completed_at timestamptz,
   created_at timestamptz not null default now()
 );
+
+alter table public.orders
+add column if not exists status text not null default 'pending';
+
+alter table public.orders
+add column if not exists completed_at timestamptz;
 
 alter table public.settings enable row level security;
 alter table public.pizzas enable row level security;

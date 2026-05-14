@@ -25,6 +25,8 @@ type OrderRow = {
   pizza_count: number;
   total: number;
   items: OrderItem[];
+  status?: string;
+  completed_at?: string | null;
   created_at: string;
 };
 
@@ -208,8 +210,9 @@ export async function fetchSupabaseOrders() {
   const { data, error } = await supabase
     .from("orders")
     .select(
-      "id, slot_id, pickup_label, pickup_time, pizza_count, total, items, created_at",
+      "id, slot_id, pickup_label, pickup_time, pizza_count, total, items, status, completed_at, created_at",
     )
+    .eq("status", "pending")
     .order("pickup_time", { ascending: true });
 
   if (error || !data) {
@@ -217,6 +220,24 @@ export async function fetchSupabaseOrders() {
   }
 
   return data.map((row) => rowToOrder(row as OrderRow));
+}
+
+export async function completeSupabaseOrder(orderId: string) {
+  const supabase = createSupabaseClient();
+
+  if (!supabase) {
+    return false;
+  }
+
+  const { error } = await supabase
+    .from("orders")
+    .update({
+      status: "completed",
+      completed_at: new Date().toISOString(),
+    })
+    .eq("id", orderId);
+
+  return !error;
 }
 
 export async function clearSupabaseOrders() {
