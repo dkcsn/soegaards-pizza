@@ -116,15 +116,6 @@ export function BakerClient() {
 
   return (
     <div className="mx-auto grid min-h-[calc(100vh-7rem)] max-w-3xl gap-5">
-      <section className="border border-stone-800 bg-stone-950 p-6">
-        <p className="text-xs uppercase tracking-[0.22em] text-stone-500">
-          Nu
-        </p>
-        <p className="mt-3 font-mono text-7xl text-stone-50">
-          {formatClock(now)}
-        </p>
-      </section>
-
       <header className="flex items-end justify-between gap-4 border-b border-stone-800 pb-5">
         <div>
           <p className="text-xs uppercase tracking-[0.24em] text-stone-500">
@@ -134,9 +125,17 @@ export function BakerClient() {
             Næste bestilling
           </h1>
         </div>
-        <p className="text-right text-xs uppercase tracking-[0.18em] text-stone-500">
-          {status}
-        </p>
+        <div className="border-r border-stone-700 pr-5 text-right">
+          <p className="text-xs uppercase tracking-[0.22em] text-stone-500">
+            Nu
+          </p>
+          <p className="mt-2 font-mono text-7xl text-stone-50">
+            {formatClock(now)}
+          </p>
+          <p className="mt-2 text-xs uppercase tracking-[0.18em] text-stone-500">
+            {status}
+          </p>
+        </div>
       </header>
 
       {nextOrder ? (
