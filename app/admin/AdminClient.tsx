@@ -97,7 +97,7 @@ export function AdminClient({ pizzas }: AdminClientProps) {
       price: 165,
       description: "Beskrivelse af pizzaen.",
       ingredients: ["ingrediens"],
-      active: true,
+      active: false,
       imageUrl: "",
     };
 

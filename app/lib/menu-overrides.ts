@@ -194,7 +194,7 @@ export function addCustomPizza() {
       price: 165,
       description: "Beskrivelse af pizzaen.",
       ingredients: ["ingrediens"],
-      active: true,
+      active: false,
       imageUrl: "",
     },
   ]);
