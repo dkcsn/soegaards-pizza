@@ -60,12 +60,12 @@ export function MenuClient({ pizzas, nowIso }: MenuClientProps) {
     DEFAULT_MAX_ORDER_PIZZAS,
   );
   const [remoteOrders, setRemoteOrders] = useState<FakeOrder[] | null>(null);
+  const [now, setNow] = useState(() => new Date(nowIso));
   const orders = useSyncExternalStore(
     subscribeToFakeOrders,
     getFakeOrdersSnapshot,
     getFakeOrdersServerSnapshot,
   );
-  const now = useMemo(() => new Date(nowIso), [nowIso]);
 
   useEffect(() => {
     let cancelled = false;
@@ -106,9 +106,31 @@ export function MenuClient({ pizzas, nowIso }: MenuClientProps) {
     }
 
     void loadSupabaseData();
+    const intervalId = window.setInterval(loadSupabaseData, 15000);
 
     return () => {
       cancelled = true;
+      window.clearInterval(intervalId);
+    };
+  }, []);
+
+  useEffect(() => {
+    let timeoutId = 0;
+
+    function tickOnNextMinute() {
+      setNow(new Date());
+      const nextMinute = new Date();
+      nextMinute.setSeconds(60, 0);
+      timeoutId = window.setTimeout(
+        tickOnNextMinute,
+        nextMinute.getTime() - Date.now(),
+      );
+    }
+
+    tickOnNextMinute();
+
+    return () => {
+      window.clearTimeout(timeoutId);
     };
   }, []);
 
