@@ -37,8 +37,12 @@ export default function Home() {
         <div className="mt-16 grid gap-10 border-t border-stone-900 pt-10 lg:grid-cols-[minmax(0,1fr)_360px]">
           <div className="max-w-3xl space-y-6 text-lg leading-8 text-stone-400">
             <p>
-              Vi laver kun 5-6 faste pizzaer og holder menuen bevidst enkel, så
-              fokus kan blive på råvarer, dej og håndværk.
+              Vi holder menuen lille med 5-6 pizzaer ad gangen, så fokus kan
+              blive på råvarer, dej og håndværk.
+            </p>
+            <p>
+              Nogle pizzaer vender tilbage fast, mens andre ændrer sig løbende
+              efter sæson, råvarer og inspiration.
             </p>
             <p>
               Langtidshævet dej med op til 96 timers fermentering, Fior di
