@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export default function Home() {
   return (
     <main className="min-h-screen bg-stone-950 text-stone-100">
@@ -35,9 +37,12 @@ export default function Home() {
         </p>
 
         <div className="mt-12">
-          <button className="rounded-full bg-stone-100 px-8 py-4 text-sm font-semibold uppercase tracking-widest text-stone-950 transition hover:bg-stone-300">
+          <Link
+            href="/menu"
+            className="inline-flex rounded-full bg-stone-100 px-8 py-4 text-sm font-semibold uppercase tracking-widest text-stone-950 transition hover:bg-stone-300"
+          >
             Se menu
-          </button>
+          </Link>
         </div>
       </section>
     </main>

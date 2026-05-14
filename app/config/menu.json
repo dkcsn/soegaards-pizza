@@ -1,0 +1,50 @@
+[
+  {
+    "id": "margherita",
+    "name": "Margherita",
+    "price": 145,
+    "description": "San Marzano-tomat, Fior di Latte, frisk basilikum og olivenolie.",
+    "ingredients": ["San Marzano-tomat", "Fior di Latte", "basilikum", "olivenolie"],
+    "active": true
+  },
+  {
+    "id": "marinara",
+    "name": "Marinara",
+    "price": 145,
+    "description": "San Marzano-tomat, hvidløg, oregano og olivenolie.",
+    "ingredients": ["San Marzano-tomat", "hvidløg", "oregano", "olivenolie"],
+    "active": true
+  },
+  {
+    "id": "salame",
+    "name": "Salame",
+    "price": 165,
+    "description": "Tomat, Fior di Latte og italiensk salame.",
+    "ingredients": ["tomat", "Fior di Latte", "italiensk salame"],
+    "active": true
+  },
+  {
+    "id": "nduja",
+    "name": "Nduja",
+    "price": 175,
+    "description": "Tomat, Fior di Latte, nduja og rødløg.",
+    "ingredients": ["tomat", "Fior di Latte", "nduja", "rødløg"],
+    "active": true
+  },
+  {
+    "id": "funghi",
+    "name": "Funghi",
+    "price": 165,
+    "description": "Fior di Latte, svampe, timian og olivenolie.",
+    "ingredients": ["Fior di Latte", "svampe", "timian", "olivenolie"],
+    "active": true
+  },
+  {
+    "id": "bianca",
+    "name": "Bianca",
+    "price": 155,
+    "description": "Fior di Latte, ricotta, citron og sort peber.",
+    "ingredients": ["Fior di Latte", "ricotta", "citron", "sort peber"],
+    "active": true
+  }
+]
