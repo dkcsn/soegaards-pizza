@@ -27,7 +27,7 @@ export default async function OrderConfirmationPage({
           Ordre bekræftet
         </p>
         <h1 className="mt-5 text-4xl font-semibold text-stone-50 md:text-6xl">
-          Vi fyrer ovnen.
+          Vi fyrer op i ovnen.
         </h1>
         <p className="mt-6 max-w-2xl leading-7 text-stone-400">
           Dette er en fake betaling til MVP-test. Når Stripe kobles på senere,
