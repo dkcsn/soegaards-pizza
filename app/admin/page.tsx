@@ -5,7 +5,6 @@ import {
   LATE_START_TIME,
   MAX_PIZZAS_PER_SLOT,
   PIZZA_CAPACITY_MINUTES,
-  RELEASE_CONTROL_ENABLED,
   SLOT_CAPACITY_MINUTES,
   SLOT_INTERVAL_MINUTES,
   canCreateDynamicSlot,
@@ -67,10 +66,10 @@ export default function AdminPage() {
                 Release control
               </p>
               <p className="mt-3 font-mono text-2xl text-stone-50">
-                {RELEASE_CONTROL_ENABLED ? "Enabled" : "Disabled"}
+                Configurable
               </p>
               <p className="mt-2 text-sm text-stone-500">
-                Late starts from {LATE_START_TIME}
+                Late starts from {LATE_START_TIME}. Toggle below.
               </p>
             </div>
           </div>

@@ -10,6 +10,7 @@ import {
 } from "@/app/lib/fake-orders";
 import { formatPrice, type Pizza } from "@/app/lib/menu";
 import { DEFAULT_ADMIN_SETTINGS } from "@/app/lib/admin-settings";
+import { RELEASE_CONTROL_ENABLED } from "@/app/lib/booking";
 import {
   inputToList,
   listToInput,
@@ -22,8 +23,10 @@ import {
   fetchSupabaseMaxOrderPizzas,
   fetchSupabaseOrders,
   fetchSupabasePizzas,
+  fetchSupabaseReleaseControlEnabled,
   updateSupabaseDailyCapacity,
   updateSupabaseMaxOrderPizzas,
+  updateSupabaseReleaseControlEnabled,
   upsertSupabasePizza,
 } from "@/app/lib/supabase/data";
 
@@ -37,6 +40,9 @@ export function AdminClient({ pizzas }: AdminClientProps) {
   );
   const [maxOrderPizzas, setMaxOrderPizzas] = useState(
     DEFAULT_ADMIN_SETTINGS.maxOrderPizzas,
+  );
+  const [releaseControlEnabled, setReleaseControlEnabled] = useState(
+    RELEASE_CONTROL_ENABLED,
   );
   const [editablePizzas, setEditablePizzas] = useState(pizzas);
   const [status, setStatus] = useState("Config fallback");
@@ -68,12 +74,14 @@ export function AdminClient({ pizzas }: AdminClientProps) {
       const [
         remoteCapacity,
         remoteMaxOrderPizzas,
+        remoteReleaseControlEnabled,
         remotePizzas,
         loadedOrders,
       ] =
         await Promise.all([
           fetchSupabaseDailyCapacity(),
           fetchSupabaseMaxOrderPizzas(),
+          fetchSupabaseReleaseControlEnabled(),
           fetchSupabasePizzas(),
           fetchSupabaseOrders(),
         ]);
@@ -88,6 +96,10 @@ export function AdminClient({ pizzas }: AdminClientProps) {
 
       if (typeof remoteMaxOrderPizzas === "number") {
         setMaxOrderPizzas(remoteMaxOrderPizzas);
+      }
+
+      if (typeof remoteReleaseControlEnabled === "boolean") {
+        setReleaseControlEnabled(remoteReleaseControlEnabled);
       }
 
       if (remotePizzas && remotePizzas.length > 0) {
@@ -155,6 +167,11 @@ export function AdminClient({ pizzas }: AdminClientProps) {
     const nextValue = Math.max(1, Math.min(Math.round(value || 1), 30));
     setMaxOrderPizzas(nextValue);
     void updateSupabaseMaxOrderPizzas(nextValue);
+  }
+
+  function updateReleaseControl(value: boolean) {
+    setReleaseControlEnabled(value);
+    void updateSupabaseReleaseControlEnabled(value);
   }
 
   function clearTestOrders() {
@@ -225,6 +242,37 @@ export function AdminClient({ pizzas }: AdminClientProps) {
           <p className="mt-2 text-sm text-stone-500">
             {status}
           </p>
+        </div>
+      </section>
+
+      <section className="border border-stone-800 p-5">
+        <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-[0.22em] text-stone-600">
+              Release control
+            </p>
+            <p className="mt-3 text-2xl font-semibold text-stone-50">
+              {releaseControlEnabled ? "Enabled" : "Disabled"}
+            </p>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-stone-500">
+              Når den er slået til, holdes sene tider lukket indtil tidligere
+              kapacitet er nok booket. Slå den fra for at åbne alle fremtidige
+              slots med det samme.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => updateReleaseControl(!releaseControlEnabled)}
+            className={[
+              "min-w-40 border px-5 py-4 text-sm font-semibold uppercase tracking-[0.16em] transition",
+              releaseControlEnabled
+                ? "border-stone-100 bg-stone-100 text-stone-950 hover:bg-stone-300"
+                : "border-stone-700 text-stone-300 hover:border-stone-400 hover:text-stone-50",
+            ].join(" ")}
+          >
+            {releaseControlEnabled ? "Slå fra" : "Slå til"}
+          </button>
         </div>
       </section>
 

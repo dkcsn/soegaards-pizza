@@ -26,6 +26,7 @@ import {
   fetchSupabaseMaxOrderPizzas,
   fetchSupabaseOrders,
   fetchSupabasePizzas,
+  fetchSupabaseReleaseControlEnabled,
 } from "@/app/lib/supabase/data";
 
 type MenuClientProps = {
@@ -59,6 +60,7 @@ export function MenuClient({ pizzas, nowIso }: MenuClientProps) {
   const [maxOrderPizzas, setMaxOrderPizzas] = useState(
     DEFAULT_MAX_ORDER_PIZZAS,
   );
+  const [releaseControlEnabled, setReleaseControlEnabled] = useState(true);
   const [remoteOrders, setRemoteOrders] = useState<FakeOrder[] | null>(null);
   const [now, setNow] = useState(() => new Date(nowIso));
   const orders = useSyncExternalStore(
@@ -74,12 +76,14 @@ export function MenuClient({ pizzas, nowIso }: MenuClientProps) {
       const [
         remoteCapacity,
         remoteMaxOrderPizzas,
+        remoteReleaseControlEnabled,
         remotePizzas,
         loadedOrders,
       ] =
         await Promise.all([
           fetchSupabaseDailyCapacity(),
           fetchSupabaseMaxOrderPizzas(),
+          fetchSupabaseReleaseControlEnabled(),
           fetchSupabasePizzas(),
           fetchSupabaseOrders(),
         ]);
@@ -94,6 +98,10 @@ export function MenuClient({ pizzas, nowIso }: MenuClientProps) {
 
       if (typeof remoteMaxOrderPizzas === "number") {
         setMaxOrderPizzas(remoteMaxOrderPizzas);
+      }
+
+      if (typeof remoteReleaseControlEnabled === "boolean") {
+        setReleaseControlEnabled(remoteReleaseControlEnabled);
       }
 
       if (remotePizzas && remotePizzas.length > 0) {
@@ -154,6 +162,7 @@ export function MenuClient({ pizzas, nowIso }: MenuClientProps) {
   const lateSlotsAreReleased = areLateSlotsReleasedForCapacity(
     capacityOrders,
     dailyPizzaCapacity,
+    releaseControlEnabled,
   );
   const reservedPizzaCount = getReservedPizzaCount(capacityOrders);
   const remainingPizzaCount = Math.max(
@@ -168,6 +177,7 @@ export function MenuClient({ pizzas, nowIso }: MenuClientProps) {
       slot,
       requestedPizzaCount,
       dailyPizzaCapacity,
+      releaseControlEnabled,
     );
   const firstAvailableSlot = pickupSlots.find(isSlotAvailable);
   const hours = Array.from(new Set(pickupSlots.map(getSlotHour)));
@@ -198,6 +208,7 @@ export function MenuClient({ pizzas, nowIso }: MenuClientProps) {
       selectedSlot,
       itemCount,
       dailyPizzaCapacity,
+      releaseControlEnabled,
     ) &&
     !isPaying;
 

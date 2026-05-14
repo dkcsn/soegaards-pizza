@@ -276,14 +276,19 @@ export function isLatePickupSlot(slot: Pick<PickupSlot, "timeLabel">) {
 }
 
 export function areLateSlotsReleased(orders: CapacityOrder[]) {
-  return areLateSlotsReleasedForCapacity(orders, DAILY_PIZZA_CAPACITY);
+  return areLateSlotsReleasedForCapacity(
+    orders,
+    DAILY_PIZZA_CAPACITY,
+    RELEASE_CONTROL_ENABLED,
+  );
 }
 
 export function areLateSlotsReleasedForCapacity(
   orders: CapacityOrder[],
   dailyCapacity: number,
+  releaseControlEnabled = RELEASE_CONTROL_ENABLED,
 ) {
-  if (!RELEASE_CONTROL_ENABLED) {
+  if (!releaseControlEnabled) {
     return true;
   }
 
@@ -296,6 +301,7 @@ export function canReservePickupSlot(
   slot: PickupSlot,
   pizzaCount: number,
   dailyCapacity = DAILY_PIZZA_CAPACITY,
+  releaseControlEnabled = RELEASE_CONTROL_ENABLED,
 ) {
   if (pizzaCount <= 0) {
     return false;
@@ -309,7 +315,14 @@ export function canReservePickupSlot(
     return false;
   }
 
-  if (isLatePickupSlot(slot) && !areLateSlotsReleasedForCapacity(orders, dailyCapacity)) {
+  if (
+    isLatePickupSlot(slot) &&
+    !areLateSlotsReleasedForCapacity(
+      orders,
+      dailyCapacity,
+      releaseControlEnabled,
+    )
+  ) {
     return false;
   }
 

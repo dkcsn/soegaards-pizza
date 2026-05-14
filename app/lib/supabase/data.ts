@@ -1,6 +1,7 @@
 import {
   DAILY_PIZZA_CAPACITY,
   DEFAULT_MAX_ORDER_PIZZAS,
+  RELEASE_CONTROL_ENABLED,
 } from "@/app/lib/booking";
 import type { FakeOrder, OrderItem } from "@/app/lib/fake-orders";
 import type { Pizza } from "@/app/lib/menu";
@@ -170,6 +171,47 @@ async function updateNumberSetting(key: string, value: number) {
   return !error;
 }
 
+async function fetchBooleanSetting(key: string, fallback: boolean) {
+  const supabase = createSupabaseClient();
+
+  if (!supabase) {
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .from("settings")
+    .select("value")
+    .eq("key", key)
+    .single();
+
+  if (error || !data) {
+    return null;
+  }
+
+  const value = data.value as { value?: unknown };
+
+  return typeof value.value === "boolean" ? value.value : fallback;
+}
+
+async function updateBooleanSetting(key: string, value: boolean) {
+  const supabase = createSupabaseClient();
+
+  if (!supabase) {
+    return false;
+  }
+
+  const { error } = await supabase.from("settings").upsert(
+    {
+      key,
+      value: { value },
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "key" },
+  );
+
+  return !error;
+}
+
 export async function fetchSupabaseDailyCapacity() {
   return fetchNumberSetting("daily_pizza_capacity", DAILY_PIZZA_CAPACITY);
 }
@@ -184,6 +226,14 @@ export async function fetchSupabaseMaxOrderPizzas() {
 
 export async function updateSupabaseMaxOrderPizzas(value: number) {
   return updateNumberSetting("max_order_pizzas", value);
+}
+
+export async function fetchSupabaseReleaseControlEnabled() {
+  return fetchBooleanSetting("release_control_enabled", RELEASE_CONTROL_ENABLED);
+}
+
+export async function updateSupabaseReleaseControlEnabled(value: boolean) {
+  return updateBooleanSetting("release_control_enabled", value);
 }
 
 export async function addSupabaseOrder(order: FakeOrder) {
