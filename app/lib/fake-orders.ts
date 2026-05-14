@@ -108,3 +108,7 @@ export function writeFakeOrders(orders: FakeOrder[]) {
 export function addFakeOrder(order: FakeOrder) {
   writeFakeOrders([...readFakeOrders(), order]);
 }
+
+export function clearFakeOrders() {
+  writeFakeOrders([]);
+}

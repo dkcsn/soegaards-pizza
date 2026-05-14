@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import {
+  clearFakeOrders,
+  getFakeOrdersServerSnapshot,
+  getFakeOrdersSnapshot,
+  subscribeToFakeOrders,
+} from "@/app/lib/fake-orders";
 import { formatPrice, type Pizza } from "@/app/lib/menu";
 import { DEFAULT_ADMIN_SETTINGS } from "@/app/lib/admin-settings";
 import {
@@ -31,7 +37,17 @@ export function AdminClient({ pizzas }: AdminClientProps) {
   );
   const [editablePizzas, setEditablePizzas] = useState(pizzas);
   const [status, setStatus] = useState("Config fallback");
+  const [isConfirmingClearOrders, setIsConfirmingClearOrders] = useState(false);
+  const orders = useSyncExternalStore(
+    subscribeToFakeOrders,
+    getFakeOrdersSnapshot,
+    getFakeOrdersServerSnapshot,
+  );
   const activePizzaCount = editablePizzas.filter((pizza) => pizza.active).length;
+  const orderedPizzaCount = orders.reduce(
+    (sum, order) => sum + order.pizzaCount,
+    0,
+  );
   const sortOrderByPizzaId = useMemo(
     () =>
       new Map(
@@ -126,6 +142,11 @@ export function AdminClient({ pizzas }: AdminClientProps) {
     void updateSupabaseMaxOrderPizzas(nextValue);
   }
 
+  function clearTestOrders() {
+    clearFakeOrders();
+    setIsConfirmingClearOrders(false);
+  }
+
   return (
     <div className="grid gap-8">
       <section className="grid gap-4 md:grid-cols-4">
@@ -187,6 +208,50 @@ export function AdminClient({ pizzas }: AdminClientProps) {
           <p className="mt-2 text-sm text-stone-500">
             {status}
           </p>
+        </div>
+      </section>
+
+      <section className="border border-stone-800 p-5">
+        <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-[0.22em] text-stone-600">
+              Testbestillinger
+            </p>
+            <p className="mt-3 text-2xl font-semibold text-stone-50">
+              {orderedPizzaCount} pizzaer reserveret
+            </p>
+            <p className="mt-2 text-sm leading-6 text-stone-500">
+              Sletter fake betalinger og låste testtider i denne browser.
+            </p>
+          </div>
+
+          {!isConfirmingClearOrders ? (
+            <button
+              type="button"
+              disabled={orders.length === 0}
+              onClick={() => setIsConfirmingClearOrders(true)}
+              className="border border-stone-700 px-4 py-3 text-sm font-semibold uppercase tracking-[0.16em] text-stone-300 transition hover:border-stone-400 hover:text-stone-50 disabled:cursor-not-allowed disabled:text-stone-700"
+            >
+              Slet testbestillinger
+            </button>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => setIsConfirmingClearOrders(false)}
+                className="border border-stone-800 px-4 py-3 text-sm font-semibold uppercase tracking-[0.16em] text-stone-400 transition hover:border-stone-500 hover:text-stone-100"
+              >
+                Annuller
+              </button>
+              <button
+                type="button"
+                onClick={clearTestOrders}
+                className="border border-stone-200 bg-stone-100 px-4 py-3 text-sm font-semibold uppercase tracking-[0.16em] text-stone-950 transition hover:bg-stone-300"
+              >
+                Bekræft sletning
+              </button>
+            </div>
+          )}
         </div>
       </section>
 

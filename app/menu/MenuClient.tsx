@@ -5,12 +5,10 @@ import { useRouter } from "next/navigation";
 import {
   DAILY_PIZZA_CAPACITY,
   DEFAULT_MAX_ORDER_PIZZAS,
-  PIZZA_CAPACITY_MINUTES,
   areLateSlotsReleasedForCapacity,
   canReservePickupSlot,
   generatePickupSlotsWithDynamicCapacity,
   generateStandardPickupSlots,
-  getCapacityMinutes,
   getReservedPizzaCount,
   type PickupSlot,
 } from "@/app/lib/booking";
@@ -413,11 +411,6 @@ export function MenuClient({ pizzas, nowIso }: MenuClientProps) {
               })}
             </div>
 
-            <p className="mt-3 text-sm leading-6 text-stone-500">
-              {itemCount > 0
-                ? `${itemCount} pizzaer reserverer ${getCapacityMinutes(itemCount)} minutters ovnkapacitet.`
-                : `1 pizza reserverer ${PIZZA_CAPACITY_MINUTES} minutters ovnkapacitet.`}
-            </p>
             {!lateSlotsAreReleased ? (
               <p className="mt-2 text-sm leading-6 text-stone-500">
                 Sene tider åbner, når tidligere kapacitet er tættere booket.
