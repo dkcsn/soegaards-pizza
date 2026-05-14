@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import {
+  DAILY_PIZZA_CAPACITY,
   PIZZA_CAPACITY_MINUTES,
   areLateSlotsReleasedForCapacity,
   canReservePickupSlot,
@@ -13,11 +14,6 @@ import {
   type PickupSlot,
 } from "@/app/lib/booking";
 import {
-  getAdminSettingsServerSnapshot,
-  getAdminSettingsSnapshot,
-  subscribeToAdminSettings,
-} from "@/app/lib/admin-settings";
-import {
   addFakeOrder,
   getFakeOrdersServerSnapshot,
   getFakeOrdersSnapshot,
@@ -26,13 +22,9 @@ import {
 } from "@/app/lib/fake-orders";
 import { formatPrice, type Pizza } from "@/app/lib/menu";
 import {
-  getCustomPizzasServerSnapshot,
-  getCustomPizzasSnapshot,
-  getMenuOverridesServerSnapshot,
-  getMenuOverridesSnapshot,
-  mergeMenuWithOverrides,
-  subscribeToMenuOverrides,
-} from "@/app/lib/menu-overrides";
+  fetchSupabaseDailyCapacity,
+  fetchSupabasePizzas,
+} from "@/app/lib/supabase/data";
 
 type MenuClientProps = {
   pizzas: Pizza[];
@@ -58,32 +50,47 @@ export function MenuClient({ pizzas, nowIso }: MenuClientProps) {
   const [selectedHour, setSelectedHour] = useState("");
   const [selectedSlotId, setSelectedSlotId] = useState("");
   const [isPaying, setIsPaying] = useState(false);
+  const [editablePizzas, setEditablePizzas] = useState(pizzas);
+  const [dailyPizzaCapacity, setDailyPizzaCapacity] = useState(
+    DAILY_PIZZA_CAPACITY,
+  );
   const orders = useSyncExternalStore(
     subscribeToFakeOrders,
     getFakeOrdersSnapshot,
     getFakeOrdersServerSnapshot,
   );
-  const adminSettings = useSyncExternalStore(
-    subscribeToAdminSettings,
-    getAdminSettingsSnapshot,
-    getAdminSettingsServerSnapshot,
-  );
-  const menuOverrides = useSyncExternalStore(
-    subscribeToMenuOverrides,
-    getMenuOverridesSnapshot,
-    getMenuOverridesServerSnapshot,
-  );
-  const customPizzas = useSyncExternalStore(
-    subscribeToMenuOverrides,
-    getCustomPizzasSnapshot,
-    getCustomPizzasServerSnapshot,
-  );
-  const editablePizzas = mergeMenuWithOverrides(
-    pizzas,
-    menuOverrides,
-    customPizzas,
-  ).filter((pizza) => pizza.active);
   const now = useMemo(() => new Date(nowIso), [nowIso]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadSupabaseData() {
+      const [remoteCapacity, remotePizzas] = await Promise.all([
+        fetchSupabaseDailyCapacity(),
+        fetchSupabasePizzas(),
+      ]);
+
+      if (cancelled) {
+        return;
+      }
+
+      if (typeof remoteCapacity === "number") {
+        setDailyPizzaCapacity(remoteCapacity);
+      }
+
+      if (remotePizzas && remotePizzas.length > 0) {
+        setEditablePizzas(remotePizzas);
+      }
+    }
+
+    void loadSupabaseData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const activePizzas = editablePizzas.filter((pizza) => pizza.active);
 
   const itemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
   const total = cart.reduce(
@@ -98,7 +105,6 @@ export function MenuClient({ pizzas, nowIso }: MenuClientProps) {
     () => generatePickupSlotsWithDynamicCapacity(standardSlots, orders, now),
     [now, orders, standardSlots],
   );
-  const dailyPizzaCapacity = adminSettings.dailyPizzaCapacity;
   const lateSlotsAreReleased = areLateSlotsReleasedForCapacity(
     orders,
     dailyPizzaCapacity,
@@ -204,7 +210,7 @@ export function MenuClient({ pizzas, nowIso }: MenuClientProps) {
   return (
     <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_360px]">
       <section className="grid gap-5">
-        {editablePizzas.map((pizza) => {
+        {activePizzas.map((pizza) => {
           const quantity = getQuantity(pizza.id);
 
           return (

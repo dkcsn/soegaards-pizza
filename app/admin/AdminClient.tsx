@@ -1,74 +1,114 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { formatPrice, type Pizza } from "@/app/lib/menu";
 import {
-  getAdminSettingsServerSnapshot,
-  getAdminSettingsSnapshot,
-  subscribeToAdminSettings,
-  updateDailyPizzaCapacity,
+  DEFAULT_ADMIN_SETTINGS,
 } from "@/app/lib/admin-settings";
 import {
-  addCustomPizza,
-  deleteCustomPizza,
-  getCustomPizzasServerSnapshot,
-  getCustomPizzasSnapshot,
-  getMenuOverridesServerSnapshot,
-  getMenuOverridesSnapshot,
   inputToList,
   listToInput,
-  mergeMenuWithOverrides,
-  resetPizzaOverride,
-  subscribeToMenuOverrides,
-  updateCustomPizza,
-  updatePizzaOverride,
   type PizzaOverride,
 } from "@/app/lib/menu-overrides";
+import {
+  deleteSupabasePizza,
+  fetchSupabaseDailyCapacity,
+  fetchSupabasePizzas,
+  updateSupabaseDailyCapacity,
+  upsertSupabasePizza,
+} from "@/app/lib/supabase/data";
 
 type AdminClientProps = {
   pizzas: Pizza[];
 };
 
 export function AdminClient({ pizzas }: AdminClientProps) {
-  const adminSettings = useSyncExternalStore(
-    subscribeToAdminSettings,
-    getAdminSettingsSnapshot,
-    getAdminSettingsServerSnapshot,
+  const [dailyCapacity, setDailyCapacity] = useState(
+    DEFAULT_ADMIN_SETTINGS.dailyPizzaCapacity,
   );
-  const menuOverrides = useSyncExternalStore(
-    subscribeToMenuOverrides,
-    getMenuOverridesSnapshot,
-    getMenuOverridesServerSnapshot,
-  );
-  const customPizzas = useSyncExternalStore(
-    subscribeToMenuOverrides,
-    getCustomPizzasSnapshot,
-    getCustomPizzasServerSnapshot,
-  );
-  const editablePizzas = mergeMenuWithOverrides(
-    pizzas,
-    menuOverrides,
-    customPizzas,
-  );
-  const basePizzaIds = new Set(pizzas.map((pizza) => pizza.id));
+  const [editablePizzas, setEditablePizzas] = useState(pizzas);
+  const [status, setStatus] = useState("Config fallback");
   const activePizzaCount = editablePizzas.filter((pizza) => pizza.active).length;
+  const sortOrderByPizzaId = useMemo(
+    () =>
+      new Map(
+        editablePizzas.map((pizza, index) => [pizza.id, (index + 1) * 10]),
+      ),
+    [editablePizzas],
+  );
 
-  function updatePizza(pizza: Pizza, update: PizzaOverride) {
-    if (basePizzaIds.has(pizza.id)) {
-      updatePizzaOverride(pizza.id, update);
-      return;
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadSupabaseData() {
+      const [remoteCapacity, remotePizzas] = await Promise.all([
+        fetchSupabaseDailyCapacity(),
+        fetchSupabasePizzas(),
+      ]);
+
+      if (cancelled) {
+        return;
+      }
+
+      if (typeof remoteCapacity === "number") {
+        setDailyCapacity(remoteCapacity);
+      }
+
+      if (remotePizzas && remotePizzas.length > 0) {
+        setEditablePizzas(remotePizzas);
+        setStatus("Supabase connected");
+      } else {
+        setStatus("Run Supabase schema");
+      }
     }
 
-    updateCustomPizza(pizza.id, update);
+    void loadSupabaseData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  function updatePizza(pizza: Pizza, update: PizzaOverride) {
+    const nextPizza = { ...pizza, ...update };
+    setEditablePizzas((current) =>
+      current.map((candidate) =>
+        candidate.id === pizza.id ? nextPizza : candidate,
+      ),
+    );
+
+    void upsertSupabasePizza(
+      nextPizza,
+      sortOrderByPizzaId.get(pizza.id) ?? 100,
+    );
   }
 
   function deletePizza(pizza: Pizza) {
-    if (basePizzaIds.has(pizza.id)) {
-      updatePizzaOverride(pizza.id, { active: false });
-      return;
-    }
+    setEditablePizzas((current) =>
+      current.filter((candidate) => candidate.id !== pizza.id),
+    );
+    void deleteSupabasePizza(pizza.id);
+  }
 
-    deleteCustomPizza(pizza.id);
+  function addPizza() {
+    const pizza: Pizza = {
+      id: `custom-${Date.now().toString(36)}`,
+      name: "Ny pizza",
+      price: 165,
+      description: "Beskrivelse af pizzaen.",
+      ingredients: ["ingrediens"],
+      active: true,
+      imageUrl: "",
+    };
+
+    setEditablePizzas((current) => [...current, pizza]);
+    void upsertSupabasePizza(pizza, (editablePizzas.length + 1) * 10);
+  }
+
+  function updateCapacity(value: number) {
+    const nextValue = Math.max(1, Math.min(Math.round(value || 1), 120));
+    setDailyCapacity(nextValue);
+    void updateSupabaseDailyCapacity(nextValue);
   }
 
   return (
@@ -82,10 +122,8 @@ export function AdminClient({ pizzas }: AdminClientProps) {
             <input
               type="text"
               inputMode="numeric"
-              value={adminSettings.dailyPizzaCapacity}
-              onChange={(event) =>
-                updateDailyPizzaCapacity(Number(event.target.value))
-              }
+              value={dailyCapacity}
+              onChange={(event) => updateCapacity(Number(event.target.value))}
               className="w-full border border-stone-800 bg-stone-950 px-3 py-3 font-mono text-4xl text-stone-50 outline-none focus:border-stone-500"
             />
           </label>
@@ -110,13 +148,13 @@ export function AdminClient({ pizzas }: AdminClientProps) {
           </p>
           <button
             type="button"
-            onClick={addCustomPizza}
+            onClick={addPizza}
             className="mt-4 w-full border border-stone-700 px-4 py-4 text-sm font-semibold uppercase tracking-[0.18em] text-stone-300 transition hover:border-stone-400 hover:text-stone-50"
           >
             Ny pizza
           </button>
           <p className="mt-2 text-sm text-stone-500">
-            Gemmes lokalt i browseren
+            {status}
           </p>
         </div>
       </section>
@@ -265,21 +303,13 @@ export function AdminClient({ pizzas }: AdminClientProps) {
                 />
               </label>
 
-              <div className="grid gap-3 md:col-span-2 md:grid-cols-2">
-                <button
-                  type="button"
-                  onClick={() => resetPizzaOverride(pizza.id)}
-                  disabled={!basePizzaIds.has(pizza.id)}
-                  className="border border-stone-800 px-4 py-3 text-sm font-semibold uppercase tracking-[0.16em] text-stone-400 transition hover:border-stone-500 hover:text-stone-100 disabled:cursor-not-allowed disabled:text-stone-700"
-                >
-                  Reset pizza
-                </button>
+              <div className="md:col-span-2">
                 <button
                   type="button"
                   onClick={() => deletePizza(pizza)}
-                  className="border border-stone-800 px-4 py-3 text-sm font-semibold uppercase tracking-[0.16em] text-stone-400 transition hover:border-stone-500 hover:text-stone-100"
+                  className="w-full border border-stone-800 px-4 py-3 text-sm font-semibold uppercase tracking-[0.16em] text-stone-400 transition hover:border-stone-500 hover:text-stone-100"
                 >
-                  {basePizzaIds.has(pizza.id) ? "Skjul pizza" : "Slet pizza"}
+                  Slet pizza
                 </button>
               </div>
             </div>
