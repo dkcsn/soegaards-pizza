@@ -15,8 +15,8 @@ export default function Home() {
             </h1>
 
             <p className="mt-10 max-w-2xl text-xl leading-9 text-stone-300">
-              Søgaard&apos;s Pizza er et lille preorder-baseret pizzaria bygget
-              omkring kærligheden til napolitansk pizza.
+              Søgaard&apos;s Pizza er et lille pizzaria med fokus på
+              napolitansk pizza.
             </p>
           </div>
 
@@ -38,39 +38,24 @@ export default function Home() {
           <div className="max-w-3xl space-y-6 text-lg leading-8 text-stone-400">
             <p>
               Vi holder menuen lille med 5-6 pizzaer ad gangen, så fokus kan
-              blive på råvarer, dej og håndværk.
+              blive på råvarer, dej og bagning.
             </p>
             <p>
               Nogle pizzaer vender tilbage fast, mens andre ændrer sig løbende
-              efter sæson, råvarer og inspiration.
+              efter sæson og råvarer.
             </p>
             <p>
-              Langtidshævet dej med op til 96 timers fermentering, Fior di
-              Latte, San Marzano D.O.P. tomater fra Solania og bagning ved høj
-              temperatur.
-            </p>
-            <p>
-              Vi bruger Caputo Saccorosso Tipo 00 og nøje udvalgte italienske
-              råvarer.
+              Langtidshævet dej med op til 96 timers fermentering, Caputo
+              Saccorosso Tipo 00, Fior di Latte og San Marzano D.O.P. tomater
+              fra Solania.
             </p>
             <p>
               Pizzaerne er sammensat som færdige opskrifter, hvor dej, fugt,
-              råvarer og bagning passer sammen.
+              råvarer og bagning passer sammen. Derfor laver vi ikke ændringer
+              eller ekstra toppings.
             </p>
             <p>
-              Derfor laver vi ikke ændringer eller ekstra toppings.
-            </p>
-            <p>
-              Pizzaerne bestilles på forhånd og afhentes på et valgt tidspunkt,
-              mens de stadig er varme fra ovnen.
-            </p>
-            <p>
-              Søgaard&apos;s Pizza er et lille projekt drevet af interesse,
-              nysgerrighed og kærlighed til klassisk napolitansk pizza.
-            </p>
-            <p>
-              Derfor holder vi kun åbent på udvalgte dage, når der er tid og ro
-              til at gøre det ordentligt.
+              Vi holder kun åbent på udvalgte dage.
             </p>
           </div>
 
